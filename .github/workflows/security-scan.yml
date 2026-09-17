@@ -5,12 +5,9 @@ name: security-scan (DAST)
 # staging URL (and use a self-hosted runner if it is internal-only).
 on:
   workflow_dispatch:
-  # schedule:
-  #   - cron: "0 3 * * 1"   # optional: weekly, Monday 03:00 UTC
 
 permissions:
   contents: read
-  issues: write            # the ZAP action can open an issue with findings
 
 jobs:
   zap-baseline:
@@ -31,11 +28,23 @@ jobs:
           done
           echo "Target did not become ready in time"; exit 1
 
-      - name: ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.12.0
+      - name: Run ZAP baseline scan
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/report"
+          chmod -R 777 "$GITHUB_WORKSPACE/report"
+          docker run --rm --network host \
+            -v "$GITHUB_WORKSPACE/report:/zap/wrk:rw" \
+            --user root \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t http://localhost:3000 -r zap_report.html \
+            || echo "ZAP found issues (non-zero exit) - report still produced."
+          echo "--- report directory ---"
+          ls -la "$GITHUB_WORKSPACE/report"
+
+      - name: Upload the scan report
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          target: "http://localhost:3000"
-          cmd_options: "-a"
-          fail_action: false        # report, do not fail the build
-          allow_issue_writing: false
-          artifact_name: "zap-baseline-report"
+          name: zap-baseline-report
+          path: report/zap_report.html
+          if-no-files-found: warn
