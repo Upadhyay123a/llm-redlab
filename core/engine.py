@@ -1,17 +1,23 @@
-"""The engine: orchestrates attack modules against a target.
+"""The engine: orchestrates attack -> score -> remediation for a target.
 
-It loads each attack module, runs it, and collects all findings. Keeping the
-engine tiny and module-agnostic means adding a new attack is just adding a
-module to the list - the engine never changes.
+For every finding it: runs the attack module, scores the result, and (for
+successful attacks) attaches a concrete remediation. Adding a new attack is
+just adding a module to the list - the pipeline around it never changes.
 """
 from __future__ import annotations
 
 from core.finding import Finding
+from core.scorer import score
 from core.target import Target
+from remediation.suggest import remediate
 from attacks.llm import prompt_injection
 
 
 def run_all(target: Target) -> list[Finding]:
     findings: list[Finding] = []
     findings.extend(prompt_injection.run(target))
+
+    for f in findings:
+        score(f)
+        remediate(f)
     return findings
