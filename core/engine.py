@@ -9,13 +9,14 @@ from core.finding import Finding
 from core.scorer import score
 from core.target import Target
 from remediation.suggest import remediate
-from attacks.llm import prompt_injection, jailbreak
+from attacks.llm import prompt_injection, jailbreak, system_prompt_leak
 
 
 def run_all(target: Target) -> list[Finding]:
     findings: list[Finding] = []
     findings.extend(prompt_injection.run(target))
     findings.extend(jailbreak.run(target))
+    findings.extend(system_prompt_leak.run(target))
 
     for f in findings:
         score(f)
