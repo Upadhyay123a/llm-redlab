@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from core.engine import run_all
 from core.target import MockTarget
-from attacks.llm import prompt_injection
 
 
 def _findings():
