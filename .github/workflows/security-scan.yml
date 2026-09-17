@@ -1,48 +1,41 @@
 name: security-scan (DAST)
 
-# Runs a ZAP baseline scan against a self-contained demo target (Juice Shop).
-# This is a TEMPLATE: to scan your own app, replace the target below with your
-# authorized staging URL (and use a self-hosted runner if it is internal-only).
+# ZAP baseline scan against a self-contained demo target (OWASP Juice Shop).
+# TEMPLATE: to scan your own app, replace the target with your AUTHORIZED
+# staging URL (and use a self-hosted runner if it is internal-only).
 on:
-  workflow_dispatch:          # lets you run it manually from the Actions tab
+  workflow_dispatch:
   # schedule:
-  #   - cron: "0 3 * * 1"     # (optional) every Monday 03:00 UTC
+  #   - cron: "0 3 * * 1"   # optional: weekly, Monday 03:00 UTC
 
 permissions:
   contents: read
+  issues: write            # the ZAP action can open an issue with findings
 
 jobs:
   zap-baseline:
     runs-on: ubuntu-latest
+    services:
+      juiceshop:
+        image: bkimminich/juice-shop
+        ports:
+          - 3000:3000
     steps:
-      - name: Start the demo target (OWASP Juice Shop)
+      - name: Wait for the demo target to be ready
         run: |
-          docker run -d --name juiceshop -p 3000:3000 bkimminich/juice-shop
-          echo "Waiting for the app to become ready..."
-          for i in $(seq 1 30); do
+          for i in $(seq 1 40); do
             if curl -sf -o /dev/null http://localhost:3000; then
-              echo "Target is up."; break
+              echo "Target is up."; exit 0
             fi
-            sleep 5
+            echo "waiting... ($i)"; sleep 5
           done
+          echo "Target did not become ready in time"; exit 1
 
-      - name: Run ZAP baseline scan
-        run: |
-          mkdir -p report
-          docker run --rm --network host \
-            -v "${{ github.workspace }}/report:/zap/wrk:rw" \
-            ghcr.io/zaproxy/zaproxy:stable \
-            zap-baseline.py -t http://localhost:3000 -r zap_report.html \
-            || echo "ZAP found issues (exit non-zero) - report still produced."
-
-      - name: Upload the scan report
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
         with:
-          name: zap-baseline-report
-          path: report/zap_report.html
-          retention-days: 14
-
-      - name: Stop the demo target
-        if: always()
-        run: docker rm -f juiceshop || true
+          target: "http://localhost:3000"
+          cmd_options: "-a"
+          fail_action: false        # report, do not fail the build
+          allow_issue_writing: false
+          artifact_name: "zap-baseline-report"
