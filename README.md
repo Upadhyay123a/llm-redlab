@@ -1,5 +1,7 @@
 # llm-redlab
 
+![tests](https://github.com/Upadhyay123a/llm-redlab/actions/workflows/tests.yml/badge.svg)
+
 **An AI security lab, plus a web-app security-scanning setup.** This repository
 contains two complementary security capabilities:
 
